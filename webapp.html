@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Rock Hero 🎸</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #0d1b2a;
+      color: #e0e1dd;
+      text-align: center;
+    }
+
+    h1 {
+      padding: 20px;
+      color: #ffcb77;
+    }
+
+    #game {
+      display: flex;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    .lane {
+      position: relative;
+      width: 80px;
+      height: 400px;
+      margin: 0 5px;
+      border: 2px solid #778da9;
+      overflow: hidden;
+    }
+
+    .lane[data-key="68"] { background-color: #ef476f; } /* D - Red */
+    .lane[data-key="70"] { background-color: #ffd166; } /* F - Yellow */
+    .lane[data-key="74"] { background-color: #06d6a0; } /* J - Green */
+    .lane[data-key="75"] { background-color: #118ab2; } /* K - Blue */
+
+    .note {
+      position: absolute;
+      width: 80px;
+      height: 20px;
+      background-color: #073b4c;
+      border-radius: 5px;
+    }
+
+    .hit-zone {
+      position: absolute;
+      bottom: 0;
+      height: 30px;
+      width: 100%;
+      background-color: #ffffff55;
+    }
+
+    #hud {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin-top: 10px;
+      font-size: 18px;
+    }
+
+    #timer {
+      color: #ffd166;
+    }
+
+    #score {
+      color: #06d6a0;
+    }
+
+    #instructions {
+      font-size: 14px;
+      color: #ccc;
+    }
+
+    #playButton {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #ffcb77;
+      border: none;
+      border-radius: 5px;
+      color: #333;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div style="text-align: left; padding: 10px;">
+    <a href="scratch.html" style="color: #ffcb77; text-decoration: none;">← Back to Home</a>
+  </div>
+  <h1>🎸 Rock Hero</h1>
+  <div id="instructions">Press D F J K to hit the falling notes in their lanes!</div>
+
+  <div id="hud">
+    <div id="score">Score: 0</div>
+    <div id="timer">Time: 60s</div>
+  </div>
+
+  <button id="playButton">▶️ Play</button>
+
+  <div id="game">
+    <div class="lane" data-key="68"><div class="hit-zone"></div></div>
+    <div class="lane" data-key="70"><div class="hit-zone"></div></div>
+    <div class="lane" data-key="74"><div class="hit-zone"></div></div>
+    <div class="lane" data-key="75"><div class="hit-zone"></div></div>
+  </div>
+
+  <script>
+    const lanes = document.querySelectorAll('.lane');
+    const scoreDisplay = document.getElementById('score');
+    const timerDisplay = document.getElementById('timer');
+    const playButton = document.getElementById('playButton');
+
+    let score = 0;
+    let timeLeft = 60;
+    let gameActive = false;
+    let noteSpawner, gameTimer;
+
+    function updateScoreDisplay() {
+      scoreDisplay.textContent = `Score: ${score}`;
+    }
+
+    function spawnNote(lane) {
+      const note = document.createElement('div');
+      note.classList.add('note');
+      note.style.top = '0px';
+      lane.appendChild(note);
+
+      const fallInterval = setInterval(() => {
+        const top = parseInt(note.style.top);
+        if (!gameActive || top >= 370) {
+          clearInterval(fallInterval);
+          if (note.parentNode) note.remove();
+        } else {
+          note.style.top = `${top + 5}px`;
+        }
+      }, 30);
+    }
+
+    function randomLane() {
+      return lanes[Math.floor(Math.random() * lanes.length)];
+    }
+
+    function spawnNotesLoop() {
+      noteSpawner = setInterval(() => {
+        if (!gameActive) {
+          clearInterval(noteSpawner);
+          return;
+        }
+        const lane = randomLane();
+        spawnNote(lane);
+      }, 600);
+    }
+
+    function checkHit(keyCode) {
+      const lane = document.querySelector(`.lane[data-key="${keyCode}"]`);
+      if (!lane) return false;
+
+      const notes = lane.querySelectorAll('.note');
+      let hit = false;
+
+      notes.forEach(note => {
+        const top = parseInt(note.style.top);
+        if (top >= 340 && top <= 390 && !hit) {
+          lane.removeChild(note);
+          score += 25;
+          hit = true;
+          updateScoreDisplay();
+        }
+      });
+
+      return hit;
+    }
+
+    function handleKeyPress(e) {
+      if (!gameActive) return;
+
+      const validKeys = [68, 70, 74, 75]; // D, F, J, K
+      if (!validKeys.includes(e.keyCode)) return;
+
+      const wasHit = checkHit(e.keyCode);
+      if (!wasHit) {
+        score -= 10;
+        if (score < 0) score = 0;
+        updateScoreDisplay();
+      }
+    }
+
+    function startTimer() {
+      timeLeft = 60;
+      timerDisplay.textContent = `Time: ${timeLeft}s`;
+
+      gameTimer = setInterval(() => {
+        timeLeft--;
+        timerDisplay.textContent = `Time: ${timeLeft}s`;
+        if (timeLeft <= 0) {
+          clearInterval(gameTimer);
+          clearInterval(noteSpawner);
+          gameActive = false;
+          playButton.style.display = 'inline-block';
+          alert(`⏱️ Time's up! Final Score: ${score}`);
+        }
+      }, 1000);
+    }
+
+    function startGame() {
+      // Reset game state
+      score = 0;
+      timeLeft = 60;
+      gameActive = true;
+      updateScoreDisplay();
+      timerDisplay.textContent = `Time: 60s`;
+
+      // Clear any leftover notes
+      lanes.forEach(lane => {
+        lane.querySelectorAll('.note').forEach(n => n.remove());
+      });
+
+      // Start loops
+      spawnNotesLoop();
+      startTimer();
+
+      // Hide Play button
+      playButton.style.display = 'none';
+    }
+
+    playButton.addEventListener('click', startGame);
+    document.addEventListener('keydown', handleKeyPress);
+  </script>
+
+</body>
+</html>
